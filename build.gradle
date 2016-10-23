@@ -1,0 +1,84 @@
+// Adding ScalaStyle support
+buildscript {
+    repositories {
+        jcenter()
+    }
+    dependencies {
+        classpath(
+            [group: "org.github.ngbinh.scalastyle", name: "gradle-scalastyle-plugin_2.11", version: "0.7.2"]
+        )
+    }
+}
+
+apply plugin: 'scala'
+apply plugin: 'scalaStyle'
+apply plugin: 'project-report'
+apply plugin: 'application'
+
+// Scala and Akka versions
+def scalaMajor = "2.11"
+def scalaMinor = "8"
+def akkaVersion = "2.4.11"
+
+group 'io.github.vigoo'
+mainClassName = "io.github.vigoo.example.Main"
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    compile(
+        [group: 'org.scala-lang', name: 'scala-compiler', version: "$scalaMajor.$scalaMinor"],
+        [group: 'org.scala-lang', name: 'scala-library', version: "$scalaMajor.$scalaMinor"],
+        [group: 'com.typesafe.akka', name: "akka-actor_$scalaMajor", version: akkaVersion],
+    )
+
+    testCompile(
+        [group: 'junit', name: 'junit', version: '4.12'],
+        [group: 'org.specs2', name: "specs2-core_$scalaMajor", version: '3.8.5.1'],
+        [group: 'org.specs2', name: "specs2-junit_$scalaMajor", version: '3.8.5.1'],
+    )
+}
+
+// Specifying the main class for the 'application' plugin
+jar {
+    baseName = project.name
+    manifest {
+        attributes("Main-Class": mainClassName)
+    }
+}
+
+// Workaround for Gradle 3.+ and IDEA (https://discuss.gradle.org/t/idea-integration-with-scala-plugin-broken-since-gradle-3-0-no-such-property-daemonserver/19159/2)
+ScalaCompileOptions.metaClass.daemonServer = true
+ScalaCompileOptions.metaClass.fork = true
+ScalaCompileOptions.metaClass.useAnt = false
+ScalaCompileOptions.metaClass.useCompileDaemon = false
+
+tasks.withType(ScalaCompile) {
+	scalaCompileOptions.additionalParameters = ["-unchecked", "-deprecation", "-feature", "-Xfatal-warnings", "-encoding", "utf8"]
+}
+
+// ScalaStyle config, by putting it to the project subdirectory, IDEA will automatically use it
+scalaStyle {
+    configLocation = "$rootDir/project/scalastyle_config.xml"
+    includeTestSourceDirectory = true
+    source = "src/main/scala"
+    testSource = "src/test/scala"    
+}
+
+// Run ScalaStyle with the tests
+check {
+    dependsOn "scalaStyle"
+}
+
+// specs2 console logging
+test {
+	testLogging.showStandardStreams = true
+	systemProperty "specs2.commandline", "console"
+}
+
+// Generating gradle wrapper so people don't have to have the Gradle version preinstalled
+task wrapper(type: Wrapper) {
+    gradleVersion = "3.1"
+}
